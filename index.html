@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>متجر التطبيقات | App Store</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Tajawal:wght@300;400;500;700;900&display=swap"
+        rel="stylesheet">
+    <!-- Ionicons -->
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+</head>
+
+<body>
+
+    <!-- Header -->
+    <header>
+        <div class="container header-content">
+            <div class="logo">
+                <ion-icon name="logo-google-playstore"></ion-icon>
+                <span>AppsHub</span>
+            </div>
+            <div class="search-bar">
+                <ion-icon name="search-outline"></ion-icon>
+                <input type="text" id="searchInput" placeholder="ابحث عن تطبيقات وألعاب...">
+            </div>
+            <button class="btn-secondary" id="openLoginModalBtn">
+                <ion-icon name="log-in-outline"></ion-icon>
+                دخول مسؤول
+            </button>
+            <button class="btn-primary" id="openUploadModalBtn" style="display: none;"> <!-- Hidden by default -->
+                <ion-icon name="cloud-upload-outline"></ion-icon>
+                رفع تطبيق
+            </button>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container hero-content">
+            <div class="hero-text">
+                <h1>اكتشف عالمك الرقمي</h1>
+                <p>أفضل التطبيقات والألعاب بين يديك. حمّل، استمتع، وشارك إبداعك معنا.</p>
+                <button class="btn-explore">تصفح الآن</button>
+            </div>
+            <div class="hero-image">
+                <div class="floating-icon icon-1"><ion-icon name="game-controller"></ion-icon></div>
+                <div class="floating-icon icon-2"><ion-icon name="musical-notes"></ion-icon></div>
+                <div class="floating-icon icon-3"><ion-icon name="videocam"></ion-icon></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Categories (Optional) -->
+    <section class="categories container">
+        <button class="chip active">الكل</button>
+        <button class="chip">ألعاب</button>
+        <button class="chip">تواصل اجتماعي</button>
+        <button class="chip">إنتاجية</button>
+        <button class="chip">تعليم</button>
+    </section>
+
+    <!-- Apps Grid -->
+    <main class="container">
+        <h2 class="section-title">الأكثر رواجاً</h2>
+        <div class="apps-grid" id="appsGrid">
+            <!-- Apps will be injected here by JS -->
+        </div>
+    </main>
+
+    <!-- Upload Modal -->
+    <div class="modal-overlay" id="uploadModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>رفع تطبيق جديد</h3>
+                <button class="close-modal" id="closeUploadModalBtn"><ion-icon name="close-outline"></ion-icon></button>
+            </div>
+            <div class="modal-body">
+                <form id="uploadForm">
+                    <div class="form-group">
+                        <label>اسم التطبيق</label>
+                        <input type="text" id="appName" required placeholder="مثال: واتساب الذهبي">
+                    </div>
+                    <div class="form-group">
+                        <label>المطور</label>
+                        <input type="text" id="appDeveloper" required placeholder="اسمك أو اسم فريقك">
+                    </div>
+                    <div class="form-group">
+                        <label>الوصف</label>
+                        <textarea id="appDesc" rows="3" required placeholder="وصف قصير للتطبيق..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>رابط الأيقونة (URL)</label>
+                        <input type="url" id="appIcon" required placeholder="https://example.com/icon.png">
+                    </div>
+                    <button type="submit" class="btn-primary full-width">نشر التطبيق</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Details Modal -->
+    <div class="modal-overlay" id="detailsModal">
+        <div class="modal details-modal-content">
+            <button class="close-modal-absolute" id="closeDetailsModalBtn"><ion-icon
+                    name="close-outline"></ion-icon></button>
+            <div class="details-header">
+                <img src="" alt="App Icon" id="detailIcon" class="detail-icon">
+                <div class="detail-info">
+                    <h2 id="detailName">اسم التطبيق</h2>
+                    <p id="detailDeveloper" class="detail-dev">المطور</p>
+                    <div class="detail-stat">
+                        <span><ion-icon name="star"></ion-icon> 4.8</span>
+                        <span><ion-icon name="download"></ion-icon> 1M+</span>
+                    </div>
+                </div>
+            </div>
+            <div class="details-body">
+                <p id="detailDesc">وصف التطبيق هنا...</p>
+                <div class="detail-actions">
+                    <button class="btn-primary full-width" id="downloadBtn">تحميل</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div class="modal-overlay" id="loginModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>تسجيل دخول مسؤول</h3>
+                <button class="close-modal" id="closeLoginModalBtn"><ion-icon name="close-outline"></ion-icon></button>
+            </div>
+            <div class="modal-body">
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label>البريد الإلكتروني</label>
+                        <input type="email" id="loginEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label>كلمة المرور</label>
+                        <input type="password" id="loginPassword" required>
+                    </div>
+                    <button type="submit" class="btn-primary full-width">دخول</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+
+</html>
