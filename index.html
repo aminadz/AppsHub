@@ -104,12 +104,15 @@
                     <div class="form-group">
                         <label data-i18n="iconLabel">App Icon</label>
                         <input type="file" id="appIcon" accept="image/*" required>
+                        <div id="iconProgress" class="upload-progress"></div>
                     </div>
                     <div class="form-group">
                         <label data-i18n="fileLabel">App File (APK)</label>
                         <input type="file" id="appFile" accept=".apk" required>
+                        <div id="fileProgress" class="upload-progress"></div>
                     </div>
-                    <button type="submit" class="btn-primary full-width" data-i18n="publishBtn">Publish App</button>
+                    <button type="submit" id="publishBtn" class="btn-primary full-width" data-i18n="publishBtn"
+                        disabled>Publish App</button>
                 </form>
             </div>
         </div>

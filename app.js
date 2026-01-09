@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-storage.js";
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-storage.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 
 // Translations Object
@@ -29,13 +29,15 @@ const translations = {
         installing: "Downloading",
         installed: "Download Complete",
         noApps: "No apps to display currently.",
-        successUpload: "App uploaded successfully!",
-        errorUpload: "Error uploading app: ",
+        successUpload: "App published successfully!",
+        errorUpload: "Error publishing app: ",
         needLogin: "You must login first!",
         successLogout: "Logged out successfully",
         errorLogout: "Logout Error",
         welcome: "Welcome",
-        loginError: "Login Error: "
+        loginError: "Login Error: ",
+        uploading: "Uploading...",
+        uploadComplete: "Upload Complete"
     },
     ar: {
         searchPlaceholder: "ابحث عن تطبيقات وألعاب...",
@@ -61,13 +63,15 @@ const translations = {
         installing: "جارٍ التحميل",
         installed: "اكتمل التحميل",
         noApps: "لا توجد تطبيقات لعرضها حالياً.",
-        successUpload: "تم رفع التطبيق وحفظه في قاعدة البيانات بنجاح!",
-        errorUpload: "حدث خطأ أثناء الرفع: ",
+        successUpload: "تم نشر التطبيق بنجاح!",
+        errorUpload: "حدث خطأ أثناء النشر: ",
         needLogin: "يجب عليك تسجيل الدخول أولاً!",
         successLogout: "تم تسجيل الخروج بنجاح",
         errorLogout: "خطأ في تسجيل الخروج",
         welcome: "أهلاً بك",
-        loginError: "خطأ في تسجيل الدخول: "
+        loginError: "خطأ في تسجيل الدخول: ",
+        uploading: "جارٍ الرفع...",
+        uploadComplete: "تم الرفع بنجاح"
     }
 };
 
@@ -102,6 +106,13 @@ const uploadModal = document.getElementById('uploadModal');
 const openUploadModalBtn = document.getElementById('openUploadModalBtn');
 const closeUploadModalBtn = document.getElementById('closeUploadModalBtn');
 const uploadForm = document.getElementById('uploadForm');
+const publishBtn = document.getElementById('publishBtn');
+
+// Upload Inputs
+const appIconInput = document.getElementById('appIcon');
+const appFileInput = document.getElementById('appFile');
+const iconProgress = document.getElementById('iconProgress');
+const fileProgress = document.getElementById('fileProgress');
 
 // Login Modal
 const loginModal = document.getElementById('loginModal');
@@ -118,6 +129,8 @@ const langSwitchBtn = document.getElementById('langSwitchBtn');
 
 // Local state
 let allApps = [];
+let uploadedIconUrl = null;
+let uploadedFileUrl = null;
 
 // --- Internationalization Logic ---
 
@@ -170,32 +183,22 @@ document.addEventListener('DOMContentLoaded', () => {
 // Listen to auth state
 onAuthStateChanged(auth, (user) => {
     const t = translations[currentLang];
-    const loginBtnSpan = openLoginModalBtn.querySelector('span') || openLoginModalBtn; // Fallback if structure changes
 
     if (user) {
         // User is signed in
-        console.log("Admin Logged In:", user.email);
-        openUploadModalBtn.style.display = "flex"; // Show upload button
+        openUploadModalBtn.style.display = "flex";
 
-        // Update button content safely
         openLoginModalBtn.innerHTML = '<ion-icon name="log-out-outline"></ion-icon> <span data-i18n="adminLogout">' + t.adminLogout + '</span>';
-
         openLoginModalBtn.classList.remove('btn-secondary');
         openLoginModalBtn.classList.add('btn-outline-danger');
-
-        // Change login button behavior to logout
         openLoginModalBtn.onclick = handleLogout;
     } else {
         // User is signed out
-        console.log("User Logged Out");
-        openUploadModalBtn.style.display = "none"; // Hide upload button
+        openUploadModalBtn.style.display = "none";
 
         openLoginModalBtn.innerHTML = '<ion-icon name="log-in-outline"></ion-icon> <span data-i18n="adminLogin">' + t.adminLogin + '</span>';
-
         openLoginModalBtn.classList.add('btn-secondary');
         openLoginModalBtn.classList.remove('btn-outline-danger');
-
-        // Change login button behavior to open modal
         openLoginModalBtn.onclick = () => window.openModal(loginModal);
     }
 });
@@ -219,19 +222,85 @@ loginForm.addEventListener('submit', (e) => {
 
     signInWithEmailAndPassword(auth, email, password)
         .then((userCredential) => {
-            // Signed in 
             window.closeModal(loginModal);
             loginForm.reset();
             alert(`${t.welcome} ${userCredential.user.email}`);
         })
         .catch((error) => {
-            const errorMessage = error.message;
-            alert(t.loginError + errorMessage);
+            alert(t.loginError + error.message);
         });
 });
 
+// --- File Upload Logic with Progress ---
 
-// --- End Auth ---
+appIconInput.addEventListener('change', (e) => handleFileUpload(e.target.files[0], 'icon'));
+appFileInput.addEventListener('change', (e) => handleFileUpload(e.target.files[0], 'file'));
+
+function handleFileUpload(file, type) {
+    if (!file) return;
+
+    const t = translations[currentLang];
+    const progressEl = type === 'icon' ? iconProgress : fileProgress;
+    const path = type === 'icon' ? 'icons' : 'apks';
+
+    // Reset status
+    progressEl.innerHTML = `<span style="color: var(--primary-color)">${t.uploading} 0%</span>`;
+    progressEl.style.width = '0%';
+
+    // Create Ref
+    const storageRef = ref(storage, `${path}/${Date.now()}_${file.name}`);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    uploadTask.on('state_changed',
+        (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            progressEl.innerHTML = `<span style="color: var(--primary-color)">${t.uploading} ${Math.round(progress)}%</span>`;
+            // Visual bar logic could be added here if we had a css bar
+        },
+        (error) => {
+            console.error("Upload Error", error);
+            progressEl.innerHTML = `<span style="color: red">Error: ${error.message}</span>`;
+            if (type === 'icon') appIconInput.value = '';
+            if (type === 'file') appFileInput.value = '';
+        },
+        () => {
+            // Success
+            getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+                progressEl.innerHTML = `<span style="color: #10b981">✔ ${t.uploadComplete}</span>`;
+
+                if (type === 'icon') uploadedIconUrl = downloadURL;
+                if (type === 'file') uploadedFileUrl = downloadURL;
+
+                checkPublishEnable();
+            });
+        }
+    );
+}
+
+function checkPublishEnable() {
+    if (uploadedIconUrl && uploadedFileUrl) {
+        publishBtn.disabled = false;
+        publishBtn.style.opacity = "1";
+        publishBtn.style.cursor = "pointer";
+    } else {
+        publishBtn.disabled = true;
+        publishBtn.style.opacity = "0.5";
+        publishBtn.style.cursor = "not-allowed";
+    }
+}
+
+// Reset form helper
+function resetUploadForm() {
+    uploadForm.reset();
+    iconProgress.innerHTML = '';
+    fileProgress.innerHTML = '';
+    uploadedIconUrl = null;
+    uploadedFileUrl = null;
+    checkPublishEnable();
+}
+
+
+// --- Main App Logic ---
 
 // Listen for Realtime Updates
 const q = query(appsCol, orderBy('createdAt', 'desc'));
@@ -246,7 +315,6 @@ onSnapshot(q, (snapshot) => {
 });
 
 
-// Render Apps Function
 function renderApps(appsList) {
     const t = translations[currentLang];
     appsGrid.innerHTML = '';
@@ -282,7 +350,6 @@ function renderApps(appsList) {
     });
 }
 
-// Search Functionality
 searchInput.addEventListener('input', (e) => {
     const term = e.target.value.toLowerCase();
     const filteredApps = allApps.filter(app =>
@@ -292,74 +359,63 @@ searchInput.addEventListener('input', (e) => {
     renderApps(filteredApps);
 });
 
-// Modal Logic
+// Modal Helpers
 window.openModal = function (modal) {
     modal.classList.add('active');
 }
-
 window.closeModal = function (modal) {
     modal.classList.remove('active');
+    if (modal === uploadModal) {
+        // Optional: clear form on close or keep it? 
+        // Better keep it in case accidental close, but we have a reset function for success.
+    }
 }
 
+// Event Listeners for Modals
 openUploadModalBtn.addEventListener('click', () => window.openModal(uploadModal));
 closeUploadModalBtn.addEventListener('click', () => window.closeModal(uploadModal));
-
 closeDetailsModalBtn.addEventListener('click', () => window.closeModal(detailsModal));
 closeLoginModalBtn.addEventListener('click', () => window.closeModal(loginModal));
-
 window.addEventListener('click', (e) => {
     if (e.target === uploadModal) window.closeModal(uploadModal);
     if (e.target === detailsModal) window.closeModal(detailsModal);
     if (e.target === loginModal) window.closeModal(loginModal);
 });
 
-
-// Handle Upload with Firebase
+// Handle Publish (Final Step)
 uploadForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const t = translations[currentLang];
 
-    // Check if user is auth (double check)
     if (!auth.currentUser) {
         alert(t.needLogin);
         return;
     }
 
+    if (!uploadedIconUrl || !uploadedFileUrl) {
+        alert("Please wait for files to upload");
+        return;
+    }
+
     const submitBtn = uploadForm.querySelector('button[type="submit"]');
-    const originalBtnText = submitBtn.innerText;
     submitBtn.disabled = true;
-    submitBtn.innerText = t.installing + "...";
+    submitBtn.innerText = "Publishing...";
 
     try {
         const name = document.getElementById('appName').value;
         const developer = document.getElementById('appDeveloper').value;
         const desc = document.getElementById('appDesc').value;
-        const iconFile = document.getElementById('appIcon').files[0];
-        const appFile = document.getElementById('appFile').files[0];
-
-        if (!iconFile || !appFile) {
-            alert(currentLang === 'ar' ? "الرجاء اختيار الأيقونة وملف التطبيق" : "Please select both Icon and App File");
-            return;
-        }
-
-        // Upload Icon
-        const iconRef = ref(storage, `icons/${Date.now()}_${iconFile.name}`);
-        const iconSnapshot = await uploadBytes(iconRef, iconFile);
-        const iconUrl = await getDownloadURL(iconSnapshot.ref);
-
-        // Upload APK
-        const apkRef = ref(storage, `apks/${Date.now()}_${appFile.name}`);
-        const apkSnapshot = await uploadBytes(apkRef, appFile);
-        const apkUrl = await getDownloadURL(apkSnapshot.ref);
+        // Filename helps if we want to show it later
+        const originalFileName = appFileInput.files[0] ? appFileInput.files[0].name : "unknown.apk";
 
         // Add to Firestore
         await addDoc(appsCol, {
             name: name,
             developer: developer,
             desc: desc,
-            icon: iconUrl,
-            fileUrl: apkUrl, // Store real APK URL
-            fileName: appFile.name, // optional: store original filename
+            icon: uploadedIconUrl,
+            fileUrl: uploadedFileUrl,
+            fileName: originalFileName,
             rating: 5.0,
             downloads: 0,
             createdAt: serverTimestamp(),
@@ -367,20 +423,20 @@ uploadForm.addEventListener('submit', async (e) => {
         });
 
         window.closeModal(uploadModal);
-        uploadForm.reset();
+        resetUploadForm();
         alert(t.successUpload);
 
     } catch (error) {
         console.error("Error adding document: ", error);
         alert(t.errorUpload + error.message);
     } finally {
-        submitBtn.disabled = false;
+        submitBtn.disabled = false; // Actually it should be disabled until new format, but resetForm handles state
         submitBtn.innerText = translations[currentLang].publishBtn;
     }
 });
 
 
-// App Details & Download
+// App Details
 function openDetails(app) {
     const t = translations[currentLang];
     document.getElementById('detailIcon').src = app.icon;
@@ -393,15 +449,9 @@ function openDetails(app) {
     const downloadBtn = document.getElementById('downloadBtn');
     downloadBtn.innerText = t.downloadBtn;
 
-    // Use Real Download URL if available, else simulate (for old mock apps)
     if (app.fileUrl) {
         downloadBtn.onclick = () => {
-            // Create a direct download link logic or just open in new tab
-            // Note: Direct download depends on browser/server headers. 
-            // Ideally we open it to let browser handle it.
             window.open(app.fileUrl, '_blank');
-
-            // Increment download count (optional - would need a new function to update doc)
         };
     } else {
         downloadBtn.onclick = () => simulateDownload(downloadBtn);
@@ -411,7 +461,6 @@ function openDetails(app) {
 }
 
 function simulateDownload(btn) {
-    // Keep simulation only for legacy mock data if any
     const t = translations[currentLang];
     btn.disabled = true;
     let progress = 0;
