@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 
 <head>
     <meta charset="UTF-8">
@@ -28,15 +28,20 @@
             </div>
             <div class="search-bar">
                 <ion-icon name="search-outline"></ion-icon>
-                <input type="text" id="searchInput" placeholder="ابحث عن تطبيقات وألعاب...">
+                <input type="text" id="searchInput" data-i18n-placeholder="searchPlaceholder"
+                    placeholder="Search apps and games...">
             </div>
+            <button class="btn-ghost" id="langSwitchBtn">
+                <ion-icon name="globe-outline"></ion-icon>
+                <span>AR</span>
+            </button>
             <button class="btn-secondary" id="openLoginModalBtn">
                 <ion-icon name="log-in-outline"></ion-icon>
-                دخول مسؤول
+                <span data-i18n="adminLogin">Admin Login</span>
             </button>
             <button class="btn-primary" id="openUploadModalBtn" style="display: none;"> <!-- Hidden by default -->
                 <ion-icon name="cloud-upload-outline"></ion-icon>
-                رفع تطبيق
+                <span data-i18n="uploadApp">Upload App</span>
             </button>
         </div>
     </header>
@@ -45,9 +50,10 @@
     <section class="hero">
         <div class="container hero-content">
             <div class="hero-text">
-                <h1>اكتشف عالمك الرقمي</h1>
-                <p>أفضل التطبيقات والألعاب بين يديك. حمّل، استمتع، وشارك إبداعك معنا.</p>
-                <button class="btn-explore">تصفح الآن</button>
+                <h1 data-i18n="heroTitle">Discover Your Digital World</h1>
+                <p data-i18n="heroSubtitle">Best apps and games in your hands. Download, enjoy, and share your
+                    creativity.</p>
+                <button class="btn-explore" data-i18n="exploreBtn">Explore Now</button>
             </div>
             <div class="hero-image">
                 <div class="floating-icon icon-1"><ion-icon name="game-controller"></ion-icon></div>
@@ -68,7 +74,7 @@
 
     <!-- Apps Grid -->
     <main class="container">
-        <h2 class="section-title">الأكثر رواجاً</h2>
+        <h2 class="section-title" data-i18n="popularSection">Most Popular</h2>
         <div class="apps-grid" id="appsGrid">
             <!-- Apps will be injected here by JS -->
         </div>
@@ -78,28 +84,28 @@
     <div class="modal-overlay" id="uploadModal">
         <div class="modal">
             <div class="modal-header">
-                <h3>رفع تطبيق جديد</h3>
+                <h3 data-i18n="uploadModalTitle">Upload New App</h3>
                 <button class="close-modal" id="closeUploadModalBtn"><ion-icon name="close-outline"></ion-icon></button>
             </div>
             <div class="modal-body">
                 <form id="uploadForm">
                     <div class="form-group">
-                        <label>اسم التطبيق</label>
-                        <input type="text" id="appName" required placeholder="مثال: واتساب الذهبي">
+                        <label data-i18n="appNameLabel">App Name</label>
+                        <input type="text" id="appName" required placeholder="Ex: WhatsApp Gold">
                     </div>
                     <div class="form-group">
-                        <label>المطور</label>
-                        <input type="text" id="appDeveloper" required placeholder="اسمك أو اسم فريقك">
+                        <label data-i18n="devNameLabel">Developer</label>
+                        <input type="text" id="appDeveloper" required placeholder="Your Name or Team">
                     </div>
                     <div class="form-group">
-                        <label>الوصف</label>
-                        <textarea id="appDesc" rows="3" required placeholder="وصف قصير للتطبيق..."></textarea>
+                        <label data-i18n="descLabel">Description</label>
+                        <textarea id="appDesc" rows="3" required placeholder="Short description..."></textarea>
                     </div>
                     <div class="form-group">
-                        <label>رابط الأيقونة (URL)</label>
-                        <input type="url" id="appIcon" required placeholder="https://example.com/icon.png">
+                        <label data-i18n="iconLabel">App Icon</label>
+                        <input type="file" id="appIcon" accept="image/*" required>
                     </div>
-                    <button type="submit" class="btn-primary full-width">نشر التطبيق</button>
+                    <button type="submit" class="btn-primary full-width" data-i18n="publishBtn">Publish App</button>
                 </form>
             </div>
         </div>
@@ -113,8 +119,8 @@
             <div class="details-header">
                 <img src="" alt="App Icon" id="detailIcon" class="detail-icon">
                 <div class="detail-info">
-                    <h2 id="detailName">اسم التطبيق</h2>
-                    <p id="detailDeveloper" class="detail-dev">المطور</p>
+                    <h2 id="detailName">App Name</h2>
+                    <p id="detailDeveloper" class="detail-dev">Developer</p>
                     <div class="detail-stat">
                         <span><ion-icon name="star"></ion-icon> 4.8</span>
                         <span><ion-icon name="download"></ion-icon> 1M+</span>
@@ -122,9 +128,9 @@
                 </div>
             </div>
             <div class="details-body">
-                <p id="detailDesc">وصف التطبيق هنا...</p>
+                <p id="detailDesc">Description here...</p>
                 <div class="detail-actions">
-                    <button class="btn-primary full-width" id="downloadBtn">تحميل</button>
+                    <button class="btn-primary full-width" id="downloadBtn" data-i18n="downloadBtn">Download</button>
                 </div>
             </div>
         </div>
@@ -134,20 +140,20 @@
     <div class="modal-overlay" id="loginModal">
         <div class="modal">
             <div class="modal-header">
-                <h3>تسجيل دخول مسؤول</h3>
+                <h3 data-i18n="loginModalTitle">Admin Login</h3>
                 <button class="close-modal" id="closeLoginModalBtn"><ion-icon name="close-outline"></ion-icon></button>
             </div>
             <div class="modal-body">
                 <form id="loginForm">
                     <div class="form-group">
-                        <label>البريد الإلكتروني</label>
+                        <label data-i18n="emailLabel">Email</label>
                         <input type="email" id="loginEmail" required>
                     </div>
                     <div class="form-group">
-                        <label>كلمة المرور</label>
+                        <label data-i18n="passwordLabel">Password</label>
                         <input type="password" id="loginPassword" required>
                     </div>
-                    <button type="submit" class="btn-primary full-width">دخول</button>
+                    <button type="submit" class="btn-primary full-width" data-i18n="loginBtn">Login</button>
                 </form>
             </div>
         </div>
