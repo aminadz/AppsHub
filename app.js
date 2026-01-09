@@ -19,14 +19,15 @@ const translations = {
         devNameLabel: "Developer",
         descLabel: "Description",
         iconLabel: "App Icon",
+        fileLabel: "App File (APK)",
         publishBtn: "Publish App",
         loginModalTitle: "Admin Login",
         emailLabel: "Email",
         passwordLabel: "Password",
         loginBtn: "Login",
         downloadBtn: "Download",
-        installing: "Installing",
-        installed: "Installed",
+        installing: "Downloading",
+        installed: "Download Complete",
         noApps: "No apps to display currently.",
         successUpload: "App uploaded successfully!",
         errorUpload: "Error uploading app: ",
@@ -50,6 +51,7 @@ const translations = {
         devNameLabel: "المطور",
         descLabel: "الوصف",
         iconLabel: "أيقونة التطبيق",
+        fileLabel: "ملف التطبيق (APK)",
         publishBtn: "نشر التطبيق",
         loginModalTitle: "تسجيل دخول مسؤول",
         emailLabel: "البريد الإلكتروني",
@@ -57,7 +59,7 @@ const translations = {
         loginBtn: "دخول",
         downloadBtn: "تحميل",
         installing: "جارٍ التحميل",
-        installed: "تم التثبيت",
+        installed: "اكتمل التحميل",
         noApps: "لا توجد تطبيقات لعرضها حالياً.",
         successUpload: "تم رفع التطبيق وحفظه في قاعدة البيانات بنجاح!",
         errorUpload: "حدث خطأ أثناء الرفع: ",
@@ -326,30 +328,38 @@ uploadForm.addEventListener('submit', async (e) => {
     const submitBtn = uploadForm.querySelector('button[type="submit"]');
     const originalBtnText = submitBtn.innerText;
     submitBtn.disabled = true;
-    submitBtn.innerText = t.installing + "..."; // Reusing installing text for uploading spinner roughly
+    submitBtn.innerText = t.installing + "...";
 
     try {
         const name = document.getElementById('appName').value;
         const developer = document.getElementById('appDeveloper').value;
         const desc = document.getElementById('appDesc').value;
         const iconFile = document.getElementById('appIcon').files[0];
+        const appFile = document.getElementById('appFile').files[0];
 
-        if (!iconFile) {
-            alert("Please select an icon image"); // Forgot to translate this specific alert, adding fallback
+        if (!iconFile || !appFile) {
+            alert(currentLang === 'ar' ? "الرجاء اختيار الأيقونة وملف التطبيق" : "Please select both Icon and App File");
             return;
         }
 
-        // Upload Image to Firebase Storage
-        const storageRef = ref(storage, `icons/${Date.now()}_${iconFile.name}`);
-        const snapshot = await uploadBytes(storageRef, iconFile);
-        const iconUrl = await getDownloadURL(snapshot.ref);
+        // Upload Icon
+        const iconRef = ref(storage, `icons/${Date.now()}_${iconFile.name}`);
+        const iconSnapshot = await uploadBytes(iconRef, iconFile);
+        const iconUrl = await getDownloadURL(iconSnapshot.ref);
 
-        // Add to Firestore using the new URL
+        // Upload APK
+        const apkRef = ref(storage, `apks/${Date.now()}_${appFile.name}`);
+        const apkSnapshot = await uploadBytes(apkRef, appFile);
+        const apkUrl = await getDownloadURL(apkSnapshot.ref);
+
+        // Add to Firestore
         await addDoc(appsCol, {
             name: name,
             developer: developer,
             desc: desc,
             icon: iconUrl,
+            fileUrl: apkUrl, // Store real APK URL
+            fileName: appFile.name, // optional: store original filename
             rating: 5.0,
             downloads: 0,
             createdAt: serverTimestamp(),
@@ -365,15 +375,12 @@ uploadForm.addEventListener('submit', async (e) => {
         alert(t.errorUpload + error.message);
     } finally {
         submitBtn.disabled = false;
-        submitBtn.innerText = originalBtnText; // Resets to "Publish App"
-        // Force refresh text in case language changed? No, it takes from HTML original usually.
-        // Actually best to re-set the text from translation
         submitBtn.innerText = translations[currentLang].publishBtn;
     }
 });
 
 
-// App Details & Mock Download
+// App Details & Download
 function openDetails(app) {
     const t = translations[currentLang];
     document.getElementById('detailIcon').src = app.icon;
@@ -385,19 +392,33 @@ function openDetails(app) {
 
     const downloadBtn = document.getElementById('downloadBtn');
     downloadBtn.innerText = t.downloadBtn;
-    downloadBtn.onclick = () => simulateDownload(downloadBtn);
+
+    // Use Real Download URL if available, else simulate (for old mock apps)
+    if (app.fileUrl) {
+        downloadBtn.onclick = () => {
+            // Create a direct download link logic or just open in new tab
+            // Note: Direct download depends on browser/server headers. 
+            // Ideally we open it to let browser handle it.
+            window.open(app.fileUrl, '_blank');
+
+            // Increment download count (optional - would need a new function to update doc)
+        };
+    } else {
+        downloadBtn.onclick = () => simulateDownload(downloadBtn);
+    }
 
     window.openModal(detailsModal);
 }
 
 function simulateDownload(btn) {
+    // Keep simulation only for legacy mock data if any
     const t = translations[currentLang];
     btn.disabled = true;
     let progress = 0;
     btn.innerText = `${t.installing} ${progress}%`;
 
     const interval = setInterval(() => {
-        progress += 5; // Slower for realism
+        progress += 10;
         btn.innerText = `${t.installing} ${progress}%`;
 
         if (progress >= 100) {
@@ -408,7 +429,6 @@ function simulateDownload(btn) {
                 btn.disabled = false;
                 btn.style.backgroundColor = "";
                 window.closeModal(detailsModal);
-                // Reset text
                 btn.innerText = t.downloadBtn;
             }, 1000);
         }
