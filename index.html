@@ -108,8 +108,32 @@
                     </div>
                     <div class="form-group">
                         <label data-i18n="fileLabel">App File (APK)</label>
-                        <input type="file" id="appFile" accept=".apk" required>
+
+                        <!-- Upload Method Switcher -->
+                        <div class="upload-method-switch" style="display: flex; gap: 15px; margin-bottom: 10px;">
+                            <label style="font-weight: normal; cursor: pointer;">
+                                <input type="radio" name="uploadMethod" value="file" checked
+                                    onchange="toggleUploadMethod()">
+                                <span data-i18n="uploadFile">Upload File</span>
+                            </label>
+                            <label style="font-weight: normal; cursor: pointer;">
+                                <input type="radio" name="uploadMethod" value="link" onchange="toggleUploadMethod()">
+                                <span data-i18n="externalLink">External Link</span>
+                            </label>
+                        </div>
+
+                        <!-- Method 1: File Upload -->
+                        <div id="fileUploadContainer" class="file-upload-wrapper">
+                            <input type="file" id="appFile" accept=".apk">
+                            <ion-icon name="logo-android"></ion-icon>
+                        </div>
                         <div id="fileProgress" class="upload-progress"></div>
+
+                        <!-- Method 2: External Link -->
+                        <div id="linkUploadContainer" style="display: none;">
+                            <input type="url" id="appLink" placeholder="https://example.com/app.apk"
+                                style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color);">
+                        </div>
                     </div>
                     <button type="submit" id="publishBtn" class="btn-primary full-width" data-i18n="publishBtn"
                         disabled>Publish App</button>
