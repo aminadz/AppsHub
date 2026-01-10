@@ -55,103 +55,38 @@ const translations = {
         deleteBtn: "حذف التطبيق",
         confirmDelete: "هل أنت متأكد من حذف هذا التطبيق؟",
         successDelete: "تم حذف التطبيق بنجاح!",
-        errorDelete: "خطأ في حذف التطبيق: "
-    },
-    // ... (rest of code) ...
-
-    // Updated openDetails function
-    function openDetails(app) {
-        const t = translations[currentLang];
-document.getElementById('detailIcon').src = app.icon;
-document.getElementById('detailIcon').onerror = function () { this.src = 'https://via.placeholder.com/100?text=App'; };
-document.getElementById('detailName').innerText = app.name;
-document.getElementById('detailDeveloper').innerText = app.developer;
-document.getElementById('detailDesc').innerText = app.desc;
-
-const downloadBtn = document.getElementById('downloadBtn');
-const deleteBtn = document.getElementById('deleteBtn');
-
-downloadBtn.innerText = t.downloadBtn;
-deleteBtn.innerText = t.deleteBtn;
-
-// Check if user is admin to show Delete button
-// (using supabase.auth.getSession() is safer to get current state)
-supabase.auth.getSession().then(({ data: { session } }) => {
-    if (session && session.user) {
-        deleteBtn.style.display = 'block';
-        deleteBtn.onclick = async () => {
-            if (confirm(t.confirmDelete)) {
-                // Delete from DB
-                const { error } = await supabase
-                    .from('applications')
-                    .delete()
-                    .eq('id', app.id);
-
-                if (error) {
-                    alert(t.errorDelete + error.message);
-                } else {
-                    alert(t.successDelete);
-                    window.closeModal(detailsModal);
-                    fetchApps(); // Refresh Grid
-                }
-            }
-        };
-    } else {
-        deleteBtn.style.display = 'none';
-    }
-});
-
-downloadBtn.onclick = async () => {
-    if (app.fileUrl) {
-        window.open(app.fileUrl, '_blank');
-        const newCount = (app.downloads || 0) + 1;
-        const { error } = await supabase
-            .from('applications')
-            .update({ downloads: newCount })
-            .eq('id', app.id);
-        if (!error) console.log("Download count updated");
-    } else {
-        alert("No file URL");
-    }
-};
-
-window.openModal(detailsModal);
-}
-
-function simulateDownload(btn) {
-    // ... logic ...
-}
-adminLogin: "دخول مسؤول",
-    adminLogout: "خروج",
+        errorDelete: "خطأ في حذف التطبيق: ",
+        adminLogin: "دخول مسؤول",
+        adminLogout: "خروج",
         uploadApp: "رفع تطبيق",
-            heroTitle: "اكتشف عالمك الرقمي",
-                heroSubtitle: "أفضل التطبيقات والألعاب بين يديك. حمّل، استمتع، وشارك إبداعك معنا.",
-                    exploreBtn: "تصفح الآن",
-                        popularSection: "الأكثر رواجاً",
-                            uploadModalTitle: "رفع تطبيق جديد",
-                                appNameLabel: "اسم التطبيق",
-                                    devNameLabel: "المطور",
-                                        descLabel: "الوصف",
-                                            iconLabel: "أيقونة التطبيق",
-                                                fileLabel: "ملف التطبيق (APK)",
-                                                    publishBtn: "نشر التطبيق",
-                                                        loginModalTitle: "تسجيل دخول مسؤول",
-                                                            emailLabel: "البريد الإلكتروني",
-                                                                passwordLabel: "كلمة المرور",
-                                                                    loginBtn: "دخول",
-                                                                        downloadBtn: "تحميل",
-                                                                            installing: "جارٍ التحميل",
-                                                                                installed: "اكتمل التحميل",
-                                                                                    noApps: "لا توجد تطبيقات لعرضها حالياً.",
-                                                                                        successUpload: "تم نشر التطبيق بنجاح!",
-                                                                                            errorUpload: "حدث خطأ أثناء النشر: ",
-                                                                                                needLogin: "يجب عليك تسجيل الدخول أولاً!",
-                                                                                                    successLogout: "تم تسجيل الخروج بنجاح",
-                                                                                                        errorLogout: "خطأ في تسجيل الخروج",
-                                                                                                            welcome: "أهلاً بك",
-                                                                                                                loginError: "خطأ في تسجيل الدخول: ",
-                                                                                                                    uploading: "جارٍ الرفع...",
-                                                                                                                        uploadComplete: "تم الرفع بنجاح"
+        heroTitle: "اكتشف عالمك الرقمي",
+        heroSubtitle: "أفضل التطبيقات والألعاب بين يديك. حمّل، استمتع، وشارك إبداعك معنا.",
+        exploreBtn: "تصفح الآن",
+        popularSection: "الأكثر رواجاً",
+        uploadModalTitle: "رفع تطبيق جديد",
+        appNameLabel: "اسم التطبيق",
+        devNameLabel: "المطور",
+        descLabel: "الوصف",
+        iconLabel: "أيقونة التطبيق",
+        fileLabel: "ملف التطبيق (APK)",
+        publishBtn: "نشر التطبيق",
+        loginModalTitle: "تسجيل دخول مسؤول",
+        emailLabel: "البريد الإلكتروني",
+        passwordLabel: "كلمة المرور",
+        loginBtn: "دخول",
+        downloadBtn: "تحميل",
+        installing: "جارٍ التحميل",
+        installed: "اكتمل التحميل",
+        noApps: "لا توجد تطبيقات لعرضها حالياً.",
+        successUpload: "تم نشر التطبيق بنجاح!",
+        errorUpload: "حدث خطأ أثناء النشر: ",
+        needLogin: "يجب عليك تسجيل الدخول أولاً!",
+        successLogout: "تم تسجيل الخروج بنجاح",
+        errorLogout: "خطأ في تسجيل الخروج",
+        welcome: "أهلاً بك",
+        loginError: "خطأ في تسجيل الدخول: ",
+        uploading: "جارٍ الرفع...",
+        uploadComplete: "تم الرفع بنجاح"
     }
 };
 
