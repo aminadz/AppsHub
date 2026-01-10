@@ -65,11 +65,11 @@
 
     <!-- Categories (Optional) -->
     <section class="categories container">
-        <button class="chip active">الكل</button>
-        <button class="chip">ألعاب</button>
-        <button class="chip">تواصل اجتماعي</button>
-        <button class="chip">إنتاجية</button>
-        <button class="chip">تعليم</button>
+        <button class="chip active" data-i18n="catAll">All</button>
+        <button class="chip" data-i18n="catGames">Games</button>
+        <button class="chip" data-i18n="catSocial">Social</button>
+        <button class="chip" data-i18n="catPoductivity">Productivity</button>
+        <button class="chip" data-i18n="catEducation">Education</button>
     </section>
 
     <!-- Apps Grid -->
@@ -138,6 +138,8 @@
                 <p id="detailDesc">Description here...</p>
                 <div class="detail-actions">
                     <button class="btn-primary full-width" id="downloadBtn" data-i18n="downloadBtn">Download</button>
+                    <button class="btn-danger full-width" id="deleteBtn" style="display: none; margin-top: 10px;"
+                        data-i18n="deleteBtn">Delete App</button>
                 </div>
             </div>
         </div>
