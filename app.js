@@ -34,7 +34,7 @@ const translations = {
         welcome: "Welcome",
         loginError: "Login Error: ",
         uploading: "Uploading...",
-        uploadComplete: "Upload Complete"
+        uploadComplete: "Upload Complete",
         catAll: "All",
         catGames: "Games",
         catSocial: "Social",
