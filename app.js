@@ -1,7 +1,4 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-storage.js";
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 
 // Translations Object
 const translations = {
@@ -78,203 +75,185 @@ const translations = {
 // Current Language State
 let currentLang = localStorage.getItem('appLang') || 'en';
 
-// Your web app's Firebase configuration
-const firebaseConfig = {
-    apiKey: "AIzaSyAnnHpagfLMc03a2xbNYKscbQYM7CM6qhg",
-    authDomain: "appshub-bfe1e.firebaseapp.com",
-    projectId: "appshub-bfe1e",
-    storageBucket: "appshub-bfe1e.firebasestorage.app",
-    messagingSenderId: "849218444124",
-    appId: "1:849218444124:web:69edb30f9bfeb9325e3f99"
-};
+// --- Supabase Configuration ---
+const supabaseUrl = 'https://vdosrxhnamrttjeqzbjq.supabase.co';
+// WARNING: The key provided looks short, usually it starts with 'eyJ'. 
+// If it fails, we will ask the user to check 'anon public' key again.
+const supabaseKey = 'sb_publishable_fQ5mLjjsM2-mXxPnhUT5BA_lPv0JjVM';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const storage = getStorage(app);
-const auth = getAuth(app);
-
-// Collection Reference
-const appsCol = collection(db, 'applications');
-
-// Elements
+// DOM Elements
 const appsGrid = document.getElementById('appsGrid');
 const searchInput = document.getElementById('searchInput');
-
-// Upload Modal
 const uploadModal = document.getElementById('uploadModal');
 const openUploadModalBtn = document.getElementById('openUploadModalBtn');
 const closeUploadModalBtn = document.getElementById('closeUploadModalBtn');
 const uploadForm = document.getElementById('uploadForm');
 const publishBtn = document.getElementById('publishBtn');
-
-// Upload Inputs
 const appIconInput = document.getElementById('appIcon');
 const appFileInput = document.getElementById('appFile');
 const iconProgress = document.getElementById('iconProgress');
 const fileProgress = document.getElementById('fileProgress');
-
-// Login Modal
 const loginModal = document.getElementById('loginModal');
 const openLoginModalBtn = document.getElementById('openLoginModalBtn');
 const closeLoginModalBtn = document.getElementById('closeLoginModalBtn');
 const loginForm = document.getElementById('loginForm');
-
-// Details Modal
 const detailsModal = document.getElementById('detailsModal');
 const closeDetailsModalBtn = document.getElementById('closeDetailsModalBtn');
-
-// Lang Switcher
 const langSwitchBtn = document.getElementById('langSwitchBtn');
 
-// Local state
+// Local State
 let allApps = [];
 let uploadedIconUrl = null;
 let uploadedFileUrl = null;
 
-// --- Internationalization Logic ---
-
+// --- Internationalization ---
 function setLanguage(lang) {
     currentLang = lang;
     localStorage.setItem('appLang', lang);
-
-    // Set Direction
     document.documentElement.lang = lang;
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
 
-    // Update Text Content
-    const elements = document.querySelectorAll('[data-i18n]');
-    elements.forEach(el => {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
-        if (translations[lang][key]) {
-            el.innerText = translations[lang][key];
-        }
+        if (translations[lang][key]) el.innerText = translations[lang][key];
     });
 
-    // Update placeholders
-    const inputs = document.querySelectorAll('[data-i18n-placeholder]');
-    inputs.forEach(input => {
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(input => {
         const key = input.getAttribute('data-i18n-placeholder');
-        if (translations[lang][key]) {
-            input.placeholder = translations[lang][key];
-        }
+        if (translations[lang][key]) input.placeholder = translations[lang][key];
     });
 
-    // Update Lang Button Text
     const langSpan = langSwitchBtn.querySelector('span');
     langSpan.innerText = lang === 'ar' ? 'EN' : 'AR';
-
-    // Re-render apps to update dynamic parts like button text if needed
     renderApps(allApps);
 }
 
 langSwitchBtn.addEventListener('click', () => {
-    const newLang = currentLang === 'en' ? 'ar' : 'en';
-    setLanguage(newLang);
+    setLanguage(currentLang === 'en' ? 'ar' : 'en');
 });
 
-// Initialize Language on Load
 document.addEventListener('DOMContentLoaded', () => {
     setLanguage(currentLang);
+    fetchApps();
+    checkUser();
 });
 
-// --- Auth Login / Logout ---
+// --- Auth (Supabase) ---
+async function checkUser() {
+    const { data: { session } } = await supabase.auth.getSession();
+    updateUIForUser(session?.user);
 
-// Listen to auth state
-onAuthStateChanged(auth, (user) => {
+    supabase.auth.onAuthStateChange((_event, session) => {
+        updateUIForUser(session?.user);
+    });
+}
+
+function updateUIForUser(user) {
     const t = translations[currentLang];
-
     if (user) {
-        // User is signed in
         openUploadModalBtn.style.display = "flex";
-
         openLoginModalBtn.innerHTML = '<ion-icon name="log-out-outline"></ion-icon> <span data-i18n="adminLogout">' + t.adminLogout + '</span>';
         openLoginModalBtn.classList.remove('btn-secondary');
         openLoginModalBtn.classList.add('btn-outline-danger');
         openLoginModalBtn.onclick = handleLogout;
     } else {
-        // User is signed out
         openUploadModalBtn.style.display = "none";
-
         openLoginModalBtn.innerHTML = '<ion-icon name="log-in-outline"></ion-icon> <span data-i18n="adminLogin">' + t.adminLogin + '</span>';
         openLoginModalBtn.classList.add('btn-secondary');
         openLoginModalBtn.classList.remove('btn-outline-danger');
         openLoginModalBtn.onclick = () => window.openModal(loginModal);
     }
-});
-
-function handleLogout() {
-    const t = translations[currentLang];
-    signOut(auth).then(() => {
-        alert(t.successLogout);
-    }).catch((error) => {
-        console.error('Logout Error:', error);
-        alert(t.errorLogout);
-    });
 }
 
-// Login Form Submit
-loginForm.addEventListener('submit', (e) => {
+async function handleLogout() {
+    const t = translations[currentLang];
+    const { error } = await supabase.auth.signOut();
+    if (error) alert(t.errorLogout);
+    else alert(t.successLogout);
+}
+
+loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const t = translations[currentLang];
     const email = document.getElementById('loginEmail').value;
     const password = document.getElementById('loginPassword').value;
 
-    signInWithEmailAndPassword(auth, email, password)
-        .then((userCredential) => {
-            window.closeModal(loginModal);
-            loginForm.reset();
-            alert(`${t.welcome} ${userCredential.user.email}`);
-        })
-        .catch((error) => {
-            alert(t.loginError + error.message);
-        });
+    const { data, error } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password,
+    });
+
+    if (error) {
+        alert(t.loginError + error.message);
+    } else {
+        window.closeModal(loginModal);
+        loginForm.reset();
+        alert(`${t.welcome} ${data.user.email}`);
+    }
 });
 
-// --- File Upload Logic with Progress ---
+// --- Data Fetching (Supabase DB) ---
+async function fetchApps() {
+    const { data, error } = await supabase
+        .from('applications')
+        .select('*')
+        .order('created_at', { ascending: false }); // Assuming default created_at col exists or needs to be added
 
+    if (error) {
+        console.error("Error fetching apps", error);
+        return;
+    }
+    allApps = data || [];
+    renderApps(allApps);
+}
+
+// --- Upload Logic (Supabase Storage) ---
 appIconInput.addEventListener('change', (e) => handleFileUpload(e.target.files[0], 'icon'));
 appFileInput.addEventListener('change', (e) => handleFileUpload(e.target.files[0], 'file'));
 
-function handleFileUpload(file, type) {
+async function handleFileUpload(file, type) {
     if (!file) return;
-
     const t = translations[currentLang];
     const progressEl = type === 'icon' ? iconProgress : fileProgress;
-    const path = type === 'icon' ? 'icons' : 'apks';
 
-    // Reset status
-    progressEl.innerHTML = `<span style="color: var(--primary-color)">${t.uploading} 0%</span>`;
-    progressEl.style.width = '0%';
+    // Check Auth
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        alert(t.needLogin);
+        if (type === 'icon') appIconInput.value = '';
+        if (type === 'file') appFileInput.value = '';
+        return;
+    }
 
-    // Create Ref
-    const storageRef = ref(storage, `${path}/${Date.now()}_${file.name}`);
-    const uploadTask = uploadBytesResumable(storageRef, file);
+    progressEl.innerHTML = `<span style="color: var(--primary-color)">${t.uploading}</span>`;
 
-    uploadTask.on('state_changed',
-        (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            progressEl.innerHTML = `<span style="color: var(--primary-color)">${t.uploading} ${Math.round(progress)}%</span>`;
-            // Visual bar logic could be added here if we had a css bar
-        },
-        (error) => {
-            console.error("Upload Error", error);
-            progressEl.innerHTML = `<span style="color: red">Error: ${error.message}</span>`;
-            if (type === 'icon') appIconInput.value = '';
-            if (type === 'file') appFileInput.value = '';
-        },
-        () => {
-            // Success
-            getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-                progressEl.innerHTML = `<span style="color: #10b981">✔ ${t.uploadComplete}</span>`;
+    // Unique name
+    const fileName = `${Date.now()}_${file.name}`;
+    const filePath = `${type}s/${fileName}`; // icons/name.png or files/name.apk
 
-                if (type === 'icon') uploadedIconUrl = downloadURL;
-                if (type === 'file') uploadedFileUrl = downloadURL;
+    const { data, error } = await supabase.storage
+        .from('files')
+        .upload(filePath, file);
 
-                checkPublishEnable();
-            });
-        }
-    );
+    if (error) {
+        console.error("Upload Error", error);
+        progressEl.innerHTML = `<span style="color: red; font-size:0.8rem">❌ ${error.message}</span>`;
+        if (type === 'icon') appIconInput.value = '';
+        if (type === 'file') appFileInput.value = '';
+    } else {
+        // Get Public URL
+        const { data: { publicUrl } } = supabase.storage
+            .from('files')
+            .getPublicUrl(filePath);
+
+        progressEl.innerHTML = `<span style="color: #10b981">✔ ${t.uploadComplete}</span>`;
+
+        if (type === 'icon') uploadedIconUrl = publicUrl;
+        if (type === 'file') uploadedFileUrl = publicUrl;
+
+        checkPublishEnable();
+    }
 }
 
 function checkPublishEnable() {
@@ -289,7 +268,6 @@ function checkPublishEnable() {
     }
 }
 
-// Reset form helper
 function resetUploadForm() {
     uploadForm.reset();
     iconProgress.innerHTML = '';
@@ -300,26 +278,63 @@ function resetUploadForm() {
 }
 
 
-// --- Main App Logic ---
+// --- Publish App (Insert into DB) ---
+uploadForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const t = translations[currentLang];
 
-// Listen for Realtime Updates
-const q = query(appsCol, orderBy('createdAt', 'desc'));
-onSnapshot(q, (snapshot) => {
-    allApps = [];
-    snapshot.docs.forEach(doc => {
-        allApps.push({ id: doc.id, ...doc.data() });
-    });
-    renderApps(allApps);
-}, (error) => {
-    console.error("Error getting documents: ", error);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        alert(t.needLogin);
+        return;
+    }
+
+    if (!uploadedIconUrl || !uploadedFileUrl) {
+        alert("Please wait for upload.");
+        return;
+    }
+
+    const submitBtn = uploadForm.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.innerText = "Publishing...";
+
+    const name = document.getElementById('appName').value;
+    const developer = document.getElementById('appDeveloper').value;
+    const desc = document.getElementById('appDesc').value;
+
+    const { error } = await supabase
+        .from('applications')
+        .insert({
+            name: name,
+            developer: developer,
+            desc: desc,
+            icon: uploadedIconUrl,
+            fileUrl: uploadedFileUrl,
+            rating: 5.0,
+            downloads: 0,
+            uploaded_by: user.id // Supabase user ID
+        });
+
+    if (error) {
+        console.error("Db Error", error);
+        alert(t.errorUpload + error.message);
+    } else {
+        window.closeModal(uploadModal);
+        resetUploadForm();
+        alert(t.successUpload);
+        fetchApps(); // Refresh list
+    }
+
+    submitBtn.disabled = false;
+    submitBtn.innerText = translations[currentLang].publishBtn;
 });
 
-
+// --- Render & Interactions ---
 function renderApps(appsList) {
     const t = translations[currentLang];
     appsGrid.innerHTML = '';
 
-    if (appsList.length === 0) {
+    if (!appsList || appsList.length === 0) {
         appsGrid.innerHTML = `<p style="text-align:center; width:100%; color: var(--text-muted);">${t.noApps}</p>`;
         return;
     }
@@ -359,19 +374,10 @@ searchInput.addEventListener('input', (e) => {
     renderApps(filteredApps);
 });
 
-// Modal Helpers
-window.openModal = function (modal) {
-    modal.classList.add('active');
-}
-window.closeModal = function (modal) {
-    modal.classList.remove('active');
-    if (modal === uploadModal) {
-        // Optional: clear form on close or keep it? 
-        // Better keep it in case accidental close, but we have a reset function for success.
-    }
-}
+// Modal Logic
+window.openModal = function (modal) { modal.classList.add('active'); }
+window.closeModal = function (modal) { modal.classList.remove('active'); }
 
-// Event Listeners for Modals
 openUploadModalBtn.addEventListener('click', () => window.openModal(uploadModal));
 closeUploadModalBtn.addEventListener('click', () => window.closeModal(uploadModal));
 closeDetailsModalBtn.addEventListener('click', () => window.closeModal(detailsModal));
@@ -382,66 +388,10 @@ window.addEventListener('click', (e) => {
     if (e.target === loginModal) window.closeModal(loginModal);
 });
 
-// Handle Publish (Final Step)
-uploadForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const t = translations[currentLang];
-
-    if (!auth.currentUser) {
-        alert(t.needLogin);
-        return;
-    }
-
-    if (!uploadedIconUrl || !uploadedFileUrl) {
-        alert("Please wait for files to upload");
-        return;
-    }
-
-    const submitBtn = uploadForm.querySelector('button[type="submit"]');
-    submitBtn.disabled = true;
-    submitBtn.innerText = "Publishing...";
-
-    try {
-        const name = document.getElementById('appName').value;
-        const developer = document.getElementById('appDeveloper').value;
-        const desc = document.getElementById('appDesc').value;
-        // Filename helps if we want to show it later
-        const originalFileName = appFileInput.files[0] ? appFileInput.files[0].name : "unknown.apk";
-
-        // Add to Firestore
-        await addDoc(appsCol, {
-            name: name,
-            developer: developer,
-            desc: desc,
-            icon: uploadedIconUrl,
-            fileUrl: uploadedFileUrl,
-            fileName: originalFileName,
-            rating: 5.0,
-            downloads: 0,
-            createdAt: serverTimestamp(),
-            uploadedBy: auth.currentUser.uid
-        });
-
-        window.closeModal(uploadModal);
-        resetUploadForm();
-        alert(t.successUpload);
-
-    } catch (error) {
-        console.error("Error adding document: ", error);
-        alert(t.errorUpload + error.message);
-    } finally {
-        submitBtn.disabled = false; // Actually it should be disabled until new format, but resetForm handles state
-        submitBtn.innerText = translations[currentLang].publishBtn;
-    }
-});
-
-
-// App Details
 function openDetails(app) {
     const t = translations[currentLang];
     document.getElementById('detailIcon').src = app.icon;
     document.getElementById('detailIcon').onerror = function () { this.src = 'https://via.placeholder.com/100?text=App'; };
-
     document.getElementById('detailName').innerText = app.name;
     document.getElementById('detailDeveloper').innerText = app.developer;
     document.getElementById('detailDesc').innerText = app.desc;
@@ -449,13 +399,11 @@ function openDetails(app) {
     const downloadBtn = document.getElementById('downloadBtn');
     downloadBtn.innerText = t.downloadBtn;
 
-    if (app.fileUrl) {
-        downloadBtn.onclick = () => {
-            window.open(app.fileUrl, '_blank');
-        };
-    } else {
-        downloadBtn.onclick = () => simulateDownload(downloadBtn);
-    }
+    downloadBtn.onclick = () => {
+        // Increment downloads (Optional, separate call)
+        if (app.fileUrl) window.open(app.fileUrl, '_blank');
+        else alert("No file URL");
+    };
 
     window.openModal(detailsModal);
 }
