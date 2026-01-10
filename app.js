@@ -43,7 +43,12 @@ const translations = {
         deleteBtn: "Delete App",
         confirmDelete: "Are you sure you want to delete this app?",
         successDelete: "App deleted successfully!",
-        errorDelete: "Error deleting app: "
+        errorDelete: "Error deleting app: ",
+        shareBtn: "Share App",
+        shareSuccess: "Link Copied!",
+        uploadFile: "Upload File",
+        externalLink: "External Link",
+        linkPlaceholder: "Direct Download Link (Drive, MediaFire...)"
     },
     ar: {
         searchPlaceholder: "ابحث عن تطبيقات وألعاب...",
@@ -56,6 +61,11 @@ const translations = {
         confirmDelete: "هل أنت متأكد من حذف هذا التطبيق؟",
         successDelete: "تم حذف التطبيق بنجاح!",
         errorDelete: "خطأ في حذف التطبيق: ",
+        shareBtn: "مشاركة التطبيق",
+        shareSuccess: "تم نسخ الرابط!",
+        uploadFile: "رفع ملف",
+        externalLink: "رابط خارجي",
+        linkPlaceholder: "رابط تحميل مباشر (درايف، ميديا فاير...)",
         adminLogin: "دخول مسؤول",
         adminLogout: "خروج",
         uploadApp: "رفع تطبيق",
@@ -110,6 +120,7 @@ const uploadForm = document.getElementById('uploadForm');
 const publishBtn = document.getElementById('publishBtn');
 const appIconInput = document.getElementById('appIcon');
 const appFileInput = document.getElementById('appFile');
+const appLinkInput = document.getElementById('appLink'); // New
 const iconProgress = document.getElementById('iconProgress');
 const fileProgress = document.getElementById('fileProgress');
 const loginModal = document.getElementById('loginModal');
@@ -119,6 +130,15 @@ const loginForm = document.getElementById('loginForm');
 const detailsModal = document.getElementById('detailsModal');
 const closeDetailsModalBtn = document.getElementById('closeDetailsModalBtn');
 const langSwitchBtn = document.getElementById('langSwitchBtn');
+
+// Toggle Upload Method
+window.toggleUploadMethod = function () {
+    const isFile = document.querySelector('input[name="uploadMethod"]:checked').value === 'file';
+    document.getElementById('fileUploadContainer').style.display = isFile ? 'flex' : 'none';
+    document.getElementById('fileProgress').style.display = isFile ? 'block' : 'none';
+    document.getElementById('linkUploadContainer').style.display = isFile ? 'none' : 'block';
+    checkPublishEnable();
+};
 
 // Local State
 let allApps = [];
@@ -151,10 +171,23 @@ langSwitchBtn.addEventListener('click', () => {
     setLanguage(currentLang === 'en' ? 'ar' : 'en');
 });
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     setLanguage(currentLang);
-    fetchApps();
+    await fetchApps();
     checkUser();
+
+    // Deep Linking Check
+    const urlParams = new URLSearchParams(window.location.search);
+    const appId = urlParams.get('app_id');
+    if (appId) {
+        // Ensure type match (Supabase IDs are usually numbers or UUIDs)
+        const app = allApps.find(a => a.id == appId);
+        if (app) {
+            openDetails(app);
+            // Optional: Remove query param to clean URL
+            // window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    }
 });
 
 // Global Error Handler for debugging
@@ -292,7 +325,19 @@ async function handleFileUpload(file, type) {
 }
 
 function checkPublishEnable() {
-    if (uploadedIconUrl && uploadedFileUrl) {
+    const isFile = document.querySelector('input[name="uploadMethod"]:checked').value === 'file';
+    const linkValid = document.getElementById('appLink').value.trim().length > 0;
+
+    // Icon MUST be uploaded
+    if (!uploadedIconUrl) {
+        publishBtn.disabled = true;
+        publishBtn.style.opacity = "0.5";
+        publishBtn.style.cursor = "not-allowed";
+        return;
+    }
+
+    // Logic: (File Mode AND File Uploaded) OR (Link Mode AND Link Valid)
+    if ((isFile && uploadedFileUrl) || (!isFile && linkValid)) {
         publishBtn.disabled = false;
         publishBtn.style.opacity = "1";
         publishBtn.style.cursor = "pointer";
@@ -302,6 +347,9 @@ function checkPublishEnable() {
         publishBtn.style.cursor = "not-allowed";
     }
 }
+
+// Add event listener for Link Input
+appLinkInput.addEventListener('input', checkPublishEnable);
 
 function resetUploadForm() {
     uploadForm.reset();
@@ -324,8 +372,16 @@ uploadForm.addEventListener('submit', async (e) => {
         return;
     }
 
-    if (!uploadedIconUrl || !uploadedFileUrl) {
-        alert("Please wait for upload.");
+    // Verify Data
+    const isFile = document.querySelector('input[name="uploadMethod"]:checked').value === 'file';
+    let finalFileUrl = uploadedFileUrl;
+
+    if (!isFile) {
+        finalFileUrl = document.getElementById('appLink').value.trim();
+    }
+
+    if (!uploadedIconUrl || !finalFileUrl) {
+        alert("Please complete all fields.");
         return;
     }
 
@@ -343,8 +399,11 @@ uploadForm.addEventListener('submit', async (e) => {
             name: name,
             developer: developer,
             desc: desc,
+            name: name,
+            developer: developer,
+            desc: desc,
             icon: uploadedIconUrl,
-            fileUrl: uploadedFileUrl,
+            fileUrl: finalFileUrl, // Use variable
             rating: 5.0,
             downloads: 0,
             uploaded_by: user.id // Supabase user ID
@@ -433,9 +492,33 @@ function openDetails(app) {
 
     const downloadBtn = document.getElementById('downloadBtn');
     const deleteBtn = document.getElementById('deleteBtn');
+    // New Share Button
+    const shareBtn = document.getElementById('shareBtn');
 
     downloadBtn.innerText = t.downloadBtn;
     if (deleteBtn) deleteBtn.innerText = t.deleteBtn;
+
+    // Share Logic
+    if (shareBtn) {
+        shareBtn.querySelector('span').innerText = t.shareBtn;
+        shareBtn.onclick = () => {
+            const shareUrl = `${window.location.origin}${window.location.pathname}?app_id=${app.id}`;
+            navigator.clipboard.writeText(shareUrl).then(() => {
+                const originalText = shareBtn.querySelector('span').innerText;
+                shareBtn.querySelector('span').innerText = t.shareSuccess;
+                shareBtn.querySelector('ion-icon').name = "checkmark-circle-outline";
+                shareBtn.style.color = "#10b981";
+                shareBtn.style.borderColor = "#10b981";
+
+                setTimeout(() => {
+                    shareBtn.querySelector('span').innerText = originalText;
+                    shareBtn.querySelector('ion-icon').name = "share-social-outline";
+                    shareBtn.style.color = "";
+                    shareBtn.style.borderColor = "";
+                }, 2000);
+            });
+        };
+    }
 
     // Check if user is admin to show Delete button
     supabase.auth.getSession().then(({ data: { session } }) => {
