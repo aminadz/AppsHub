@@ -157,10 +157,27 @@ document.addEventListener('DOMContentLoaded', () => {
     checkUser();
 });
 
+// Global Error Handler for debugging
+window.onerror = function (msg, url, line, col, error) {
+    alert("Script Error: " + msg + "\nLine: " + line);
+    console.error("Script Error:", error);
+    return false;
+};
+
 // --- Auth (Supabase) ---
 async function checkUser() {
-    const { data: { session } } = await supabase.auth.getSession();
-    updateUIForUser(session?.user);
+    try {
+        const response = await supabase.auth.getSession();
+        if (response.error) {
+            console.error("Auth Session Error:", response.error);
+            updateUIForUser(null);
+            return;
+        }
+        updateUIForUser(response.data?.session?.user);
+    } catch (err) {
+        console.error("CheckUser Unexpected Error:", err);
+        updateUIForUser(null);
+    }
 
     supabase.auth.onAuthStateChange((_event, session) => {
         updateUIForUser(session?.user);
